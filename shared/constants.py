@@ -1,0 +1,4 @@
+DISCLAIMER_TEXT = "Yatırım tavsiyesi değildir."
+
+EARLY_WARNING_WINDOW_HOURS = 24
+TOP_PICK_THRESHOLD = 80

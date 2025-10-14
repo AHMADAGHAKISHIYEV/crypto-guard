@@ -1,0 +1,82 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: cryptoguard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./.env:/app/.env:ro
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    env_file: .env
+    depends_on:
+      - api
+      - redis
+    command: ["celery", "-A", "worker:celery_app", "worker", "--loglevel=info"]
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    env_file: .env
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    env_file: .env
+    depends_on:
+      - api
+      - redis
+    command: ["python", "-m", "bot.bot"]
+
+  prometheus:
+    image: prom/prometheus:v2.51.1
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+    profiles: ["ops"]
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    profiles: ["ops"]
+
+volumes:
+  pgdata:
